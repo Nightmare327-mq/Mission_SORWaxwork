@@ -111,6 +111,7 @@ while Settings.general.PreManaCheck == true and Ready == false do
 	Ready = CheckGroupStats()
 	mq.cmd('/noparse /dgga /if (${Me.Standing}) /sit')
     Logger.info('Waiting for full hp / mana/ endurance to proceed...')
+    Logger.info('If you do not want to wait like this, change the PreManaCheck flag...')
 	mq.delay(15000)
     ZoneCheck(quest_zone)
     TaskCheck(Task_Name)

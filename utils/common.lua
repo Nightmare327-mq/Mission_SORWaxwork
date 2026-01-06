@@ -406,7 +406,7 @@ StopAttack = function()
 	mq.cmd('/attack off') 
 	mq.cmd('/cwtna CheckPriorityTarget off nosave')
 	mq.cmdf('/%s CheckPriorityTarget off nosave', my_class )
-	mq.cmdf('/%s  manual nosave', my_class )
+	mq.cmdf('/%s manual nosave', my_class )
 	Logger.debug('StopAttack branch...')
 	if mq.TLO.Target.CleanName() ~= my_name then mq.cmdf('/eqtarget %s', my_name) end
 end
@@ -417,6 +417,8 @@ ZoneIn = function(npcName, zoneInPhrase, quest_zone)
         mq.cmd('/cwtna pause on nosave')
         mq.delay(250)
     end
+    -- Adding sections to handle other automation
+    mq.cmd('/boxr pause')
     local GroupSize = mq.TLO.Group.Members()
 
     for g = 1, GroupSize, 1 do
@@ -443,9 +445,11 @@ ZoneIn = function(npcName, zoneInPhrase, quest_zone)
     if mq.TLO.Target.CleanName() ~= npcName then
         mq.cmdf('/eqtarget %s', npcName)
         mq.delay(5000)
+        Logger.info('\ay-->%s<--\apShould Be Zoning In Now', mq.TLO.Me.CleanName())
         mq.cmdf('/say %s', zoneInPhrase)
     else
         mq.delay(5000)
+        Logger.info('\ay-->%s<--\apShould Be Zoning In Now', mq.TLO.Me.CleanName())
         mq.cmdf('/say %s', zoneInPhrase)
     end
     local counter = 0
@@ -462,6 +466,7 @@ ZoneIn = function(npcName, zoneInPhrase, quest_zone)
         if Settings.general.Automation == 'CWTN' then 
             Logger.info('Un-Pausing CWTN modules after we have zoned in')
             mq.cmd('/cwtna pause off nosave')
+            mq.cmd('/boxr Unpause')
             mq.delay(250)
         end
     end
@@ -617,6 +622,10 @@ DoPrep = function()
             Logger.debug('Setting BurnAlways off')
             mq.cmd('/cwtna burnalways off nosave') 
         end
+    else
+        -- Use boxr commands to do as much as I can do in the prep routinr
+        mq.cmd('/dge /boxr Chase')
+        -- mq.cmd('/dge /boxr Camp')  
     end
     mq.cmd('/dgga /makemevis')
 end
