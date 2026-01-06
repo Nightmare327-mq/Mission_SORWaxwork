@@ -1,7 +1,5 @@
--- Mission_TOBHazuri
--- Version 1.2
--- TODO: Implement bc support if asked for
--- TODO: Implement RGMercs.lua support if asked for (it has been)
+-- Mission_SORWaxwork
+-- Version 1.0
 -- Error Reports:
 -- 
 ---------------------------
@@ -25,6 +23,7 @@ local zonein_phrase = 'ready'
 local quest_zone = 'candlemakers_mission'
 local delay_before_zoning = 27000  -- 27s
 local section = 0
+local timeDelay = 2000
 
 Settings = {
     general = {
@@ -131,6 +130,7 @@ if math.abs(mq.TLO.Me.Y() + 2363) > 200 or math.abs(mq.TLO.Me.X() + 1296) > 200 
 end
 
 if math.abs(mq.TLO.Me.Y() + 2363) > 200 or math.abs(mq.TLO.Me.X() + 1296) > 200 then
+    GroupInvis(1)
     mq.cmd('/squelch /dgga /nav locyx -2363 -1296 log=off')
     WaitForNav()
 end
@@ -151,18 +151,6 @@ mq.cmdf('/%s gotocamp', my_class)
 -- mq.cmd('/squelch /nav locyx -240 50 log=off')
 WaitForNav()
 
--- This section was waiting till all the starting adds were killed to do the rest of the script
-
--- Logger.info('Killing the 4 initial adds...')
--- while mq.TLO.SpawnCount("Waxwork Abolishion")() > 0 do
---     if (mq.TLO.SpawnCount('Waxwork Abolishion npc radius 60')() > 0) then
---         Logger.debug('Waxwork Abolishion Attack branch...')
---         MoveToTargetAndAttack('Waxwork Abolishion')
---     end
--- 	mq.delay(1000)
---     ZoneCheck(quest_zone)
---     TaskCheck(Task_Name)
--- end
 
 local event_zoned = function(line)
     -- zoned so quit
@@ -175,8 +163,8 @@ local event_failed = function(line)
 end
 
 local function getHighestHPXTarget()
-    local highestSpawn = nil
-    local highestHP = 0
+    local pickSpawn = nil
+    local hpCompare = 0
 
     for i = 1, mq.TLO.Me.XTargetSlots() do
         local xt = mq.TLO.Me.XTarget(i)
@@ -184,19 +172,44 @@ local function getHighestHPXTarget()
             local spawn = mq.TLO.Spawn(xt.ID())
             if spawn() then
                 local hp = spawn.PctHPs() or 0
-                if hp > highestHP then
-                    highestHP = hp
-                    highestSpawn = spawn
+                if hp > hpCompare then
+                    hpCompare = hp
+                    pickSpawn = spawn
                 end
             end
         end
     end
 
-    return highestSpawn
+    return pickSpawn
 end
 
+local function getLowestHPXTarget()
+    local pickSpawn = nil
+    local hpCompare = 0
+
+    for i = 1, mq.TLO.Me.XTargetSlots() do
+        local xt = mq.TLO.Me.XTarget(i)
+        if xt() and xt.ID() > 0 then
+            local spawn = mq.TLO.Spawn(xt.ID())
+            if spawn() then
+                local hp = spawn.PctHPs() or 0
+                if hp < hpCompare then
+                    hpCompare = hp
+                    pickSpawn = spawn
+                end
+            end
+        end
+    end
+
+    return pickSpawn
+end
+
+
+local addFlag = 0
+local addCount = 0
+
 mq.event('Zoned','LOADING, PLEASE WAIT...#*#',event_zoned)
-mq.event('Failed','#*#summons overwhelming enemies and your mission fails.#*#',event_failed)
+mq.event('Failed','#*#enemy, left undisturbed, causes an infinite and uncontrollable storm#*#',event_failed)
 
 while true do
 	mq.doevents()
@@ -213,6 +226,7 @@ while true do
     if (mq.TLO.SpawnCount('Waxwork Abolishion npc')() > 0 ) then 
         if (section ~= 1) then 
             section = 1
+            addFlag  = 0 
             Logger.info('Waxwork Abolishion Attack...')
         end
         Logger.debug('Waxwork Abolishion Attack branch ...')
@@ -222,22 +236,36 @@ while true do
 
     --Adds Section - balance kill the adds
     while mq.TLO.SpawnCount("Waxwork Abolishion")() < 1 do
-        if mq.TLO.Me.XTarget() > 0 then
-            -- local target = getHighestHPXTarget()
-            -- if target then
-            --     print(string.format("Highest HP ETW mob: %s (%d%% HP)", target.Name(), target.PctHPs()))
-            -- else
-            --     print("No mobs found on ETW.")
-            -- end
-            local highestHpSpawn = getHighestHPXTarget()
-            if highestHpSpawn then
-                local attackName = highestHpSpawn.CleanName()
-                Logger.debug('Highest HP Name: ',attackName)
+        if mq.TLO.Me.XTarget() > 4 then
+            if(addFlag == 0) then 
+                addCount =  mq.TLO.Me.XTarget()
+                addFlag = 1
+                section = 2
+                Logger.info('Target Count: %s',addCount)
+            end
+            local spawnToKill = getHighestHPXTarget()
+            if mq.TLO.Me.XTarget() < addCount then 
+                spawnToKill = getLowestHPXTarget() 
+                Logger.info('Switch to Lowest')
+            end
+            if spawnToKill then
+                local attackName = spawnToKill.CleanName()
+                if mq.TLO.Me.XTarget() < addCount then 
+                    Logger.info('Lowest HP Name: %s',attackName)
+                else
+                    Logger.info('Highest HP Name: %s',attackName)
+                end
+                
                 MoveToTargetAndAttack(attackName)
+
+                if mq.TLO.Spawn(attackName).PctHPs() < 20 then 
+                    timeDelay = 1000 
+                    Logger.info('TimeDelay: %s', timeDelay)
+                end
             end
         end
 
-        mq.delay(2000)
+        mq.delay(timeDelay)
         ZoneCheck(quest_zone)
         TaskCheck(Task_Name)
     end
