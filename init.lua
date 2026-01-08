@@ -21,14 +21,15 @@ local request_npc = 'Defense Unit CDL'
 local request_phrase = 'accept'
 local zonein_phrase = 'ready'
 local quest_zone = 'candlemakers_mission'
-local delay_before_zoning = 27000  -- 27s
+local delay_before_zoning = 30000  -- 30s
 local section = 0
-local timeDelay = 2000
+local timeDelay = 1500
+local holdLastKill = ''
 
 Settings = {
     general = {
         GroupMessage = 'dannet',        -- or "bc" - not yet implemented
-        Automation = 'CWTN',            -- automation method, 'CWTN' for the CWTN plugins, or 'rgmercs' for the rgmercs lua automation.  KissAssist is not really supported currently, though it might work
+        Automation = 'CWTN',            -- Automation method, 'CWTN' for the CWTN plugins, 'rgmercs' for the rgmercs lua automation, 'KA' for KissAssist.  KissAssist and RGMercs lua are not supported currently, but should get added later on        
         PreManaCheck = false,           -- true to pause until the check for everyone's mana, endurance, hp is full before proceeding, false if it stalls at that point
         Burn = true,                    -- Whether we should burn by default. Some people have a bit of trouble handling the adds when the yburn, so you are able to turn this off if you want
         OpenChest = false,              -- true if you want to open the chest automatically at the end of the mission run. I normally do not do this as you can swap toon's out before opening the chest to get the achievements
@@ -45,6 +46,14 @@ if (Settings.general.GroupMessage ~= 'dannet' and Settings.general.GroupMessage 
 end
 
 Logger.info('\awAutomation: \ay%s', Settings.general.Automation)
+Logger.info('\awAutomation: \ay%s', Settings.general.Automation)
+--if (Settings.general.Automation ~= 'CWTN' and Settings.general.Automation ~= 'rgmercs' and Settings.general.Automation ~= 'KA')  then
+if (Settings.general.Automation ~= 'CWTN'  then
+--    Logger.info("Unknown or invalid automation system. Must be either 'CWTN', 'rgmercs', or 'KA'. Ending script. \ar")
+    Logger.info("Unknown or invalid automation system. Must be 'CWTN' currently, until I add the other automation systems'. Ending script. \ar")
+    os.exit()
+end
+
 Logger.info('\awPreManaCheck: \ay%s', Settings.general.PreManaCheck)
 Logger.info('\awBurn: \ay%s', Settings.general.Burn)
 Logger.info('\awOpen Chest: \ay%s', Settings.general.OpenChest)
@@ -61,7 +70,6 @@ if my_class ~= 'WAR' and my_class ~= 'SHD' and my_class ~= 'PAL' then
 	Logger.info('You must run the script on a tank class...')
 	os.exit()
 end
-mq.cmdf('/%s pause on', my_class)
 
 if mq.TLO.Me.Combat() == true then 
     Logger.info('You started the script while you are in Combat.  Please kill the mobs first, then restart the script. Exiting script...')
@@ -79,10 +87,12 @@ if CheckGroupDistance(50) ~= true then
 end
 
 if Zone_name == request_zone then 
+    mq.cmd('/dgga /boxr unpause')
+    mq.cmd('/dge /boxr chase')
 	if mq.TLO.Spawn(request_npc).Distance() > 40 then 
 		Logger.info('You are in %s, but too far away from %s to start the mission! We will attempt to invis and run to the mission npc', request_zone, request_npc)
         GroupInvis(1)
-        MoveToAndSay(request_npc, request_phrase)
+        -- MoveToAndSay(request_npc, request_phrase)
     end
     local task = Task(Task_Name, request_zone, request_npc, request_phrase)
     WaitForTask(delay_before_zoning)
@@ -106,6 +116,7 @@ if mq.TLO.Group.AnyoneMissing() then
     Logger.info('You started the script in the mission zone, but not everyone is actually in zone.  Exiting script...')
     os.exit()
 end
+
 -- Check group mana / endurance / hp
 while Settings.general.PreManaCheck == true and Ready == false do 
 	Ready = CheckGroupStats()
@@ -117,8 +128,9 @@ while Settings.general.PreManaCheck == true and Ready == false do
     TaskCheck(Task_Name)
 end
 
+mq.cmd('/dgga /squelch /boxr unpause')
 -- in case you are starting the script after you are in the mission zone - need to determine what area you are close to
-if math.abs(mq.TLO.Me.Y() + 2363) > 200 or math.abs(mq.TLO.Me.X() + 1296) > 200 then
+if Get_dist_to(-2363, -1296, -125) > 50 then
     Logger.debug('Not at Mob, so by zone in: X:%s Y:%s', mq.TLO.Me.X(), mq.TLO.Me.Y())
     Logger.info('Doing some setup. Invising and moving to camp spot.')
 
@@ -130,20 +142,18 @@ if math.abs(mq.TLO.Me.Y() + 2363) > 200 or math.abs(mq.TLO.Me.X() + 1296) > 200 
     WaitForNav()
 end
 
-if math.abs(mq.TLO.Me.Y() + 2363) > 200 or math.abs(mq.TLO.Me.X() + 1296) > 200 then
+while Get_dist_to(-2363, -1296, -125) > 50 do
     GroupInvis(1)
     mq.cmd('/squelch /dgga /nav locyx -2363 -1296 log=off')
     WaitForNav()
+    mq.delay(5000) -- make sure everyone gets to the proper camp spot
 end
 
 Logger.info('Doing some setup...')
-
 DoPrep()
 
 Logger.info('Starting the event in 10 seconds!')
-
 mq.delay(10000)
-
 
 Logger.info('Starting the event...')
 MoveToAndSay('Waxwork Abolishion', 'destroy')
@@ -177,6 +187,10 @@ local function getHighestHPXTarget()
                     hpCompare = hp
                     pickSpawn = spawn
                 end
+                if hp ~= 0 and hp <= 40 and timeDelay > 500 then 
+                    timeDelay = 100 
+                    Logger.info('Switching addcheck to faster mode')
+                end
             end
         end
     end
@@ -198,6 +212,10 @@ local function getLowestHPXTarget()
                     hpCompare = hp
                     pickSpawn = spawn
                 end
+                -- if 
+                --     hp ~= 0 and hp <= 30 then timeDelay = 500 
+                --     Logger.info('Switching to Lowest')
+                -- end
             end
         end
     end
@@ -210,7 +228,8 @@ local addFlag = 0
 local addCount = 0
 
 mq.event('Zoned','LOADING, PLEASE WAIT...#*#',event_zoned)
-mq.event('Failed','#*#enemy, left undisturbed, causes an infinite and uncontrollable storm#*#',event_failed)
+
+mq.event('Failed','#*#The Waxwork Abolishion groans and turns its attention to more interesting enemies#*#',event_failed)
 
 while true do
 	mq.doevents()
@@ -228,6 +247,7 @@ while true do
         if (section ~= 1) then 
             section = 1
             addFlag  = 0 
+            holdLastKill = ''
             Logger.info('Waxwork Abolishion Attack...')
         end
         Logger.debug('Waxwork Abolishion Attack branch ...')
@@ -237,34 +257,32 @@ while true do
 
     --Adds Section - balance kill the adds
     while mq.TLO.SpawnCount("Waxwork Abolishion")() < 1 do
-        if mq.TLO.Me.XTarget() > 4 then
-            if(addFlag == 0) then 
-                addCount =  mq.TLO.Me.XTarget()
-                addFlag = 1
-                section = 2
-                Logger.info('Target Count: %s',addCount)
-            end
-            local spawnToKill = getHighestHPXTarget()
-            if mq.TLO.Me.XTarget() < addCount then 
-                spawnToKill = getLowestHPXTarget() 
-                Logger.info('Switch to Lowest')
-            end
-            if spawnToKill then
-                local attackName = spawnToKill.CleanName()
-                if mq.TLO.Me.XTarget() < addCount then 
-                    Logger.info('Lowest HP Name: %s',attackName)
-                else
-                    Logger.info('Highest HP Name: %s',attackName)
-                end
-                
-                MoveToTargetAndAttack(attackName)
-
-                if mq.TLO.Spawn(attackName).PctHPs() < 20 then 
-                    timeDelay = 1000 
-                    Logger.info('TimeDelay: %s', timeDelay)
-                end
-            end
+        if mq.TLO.Me.XTarget() > 0 and addFlag == 0 then
+            addCount =  mq.TLO.Me.XTarget()
+            addFlag = 1
+            section = 2
+            Logger.debug('Target Count: %s',addCount)
+            Logger.info('Attacking Split Mobs, until they are dead or despawn...')
         end
+
+        local spawnToKill = getHighestHPXTarget()
+        
+        -- if timeDelay < 1000 and mq.TLO.Me.XTarget() < addCount then 
+        --     spawnToKill = getLowestHPXTarget() 
+        --     Logger.debug('Switch to Lowest')
+        -- end
+
+        if spawnToKill then
+            local attackName = spawnToKill.CleanName()
+
+            if attackName ~= holdLastKill then
+                Logger.debug('Attacking: %s',attackName)
+                holdLastKill = attackName
+            end
+            
+            MoveToTargetAndAttack(attackName)
+        end
+    
 
         mq.delay(timeDelay)
         ZoneCheck(quest_zone)

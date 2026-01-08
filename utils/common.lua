@@ -2,7 +2,8 @@ local mq = require('mq')
 local config_path = ''
 local my_class = mq.TLO.Me.Class.ShortName()
 local my_name = mq.TLO.Me.CleanName()
-local cwtn_StartingMode = mq.TLO.CWTN.Mode()
+local cwtn_StartingMode = ''
+local cwtn_StartingCampRadius = 0
 
 local task = mq.TLO.Task(Task_Name)
 
@@ -50,6 +51,17 @@ Load_settings=function ()
         if (is_dirty) then LIP.save(config_path, Settings) end
     end
  end
+
+ Get_dist_to = function(target_y, target_x, target_z)
+    -- Use mq.TLO.Math.Distance to get the distance to a specific point
+    -- The format for the TLO is "X Y Z"
+    local dist_str = mq.TLO.Math.Distance(string.format("%f,%f,%f", target_y, target_x, target_z))()
+  
+    -- -- mq.TLO returns a string, so convert it to a number (float)
+    local distance = tonumber(dist_str)
+    
+    return distance
+end
 
  WaitForNav = function()
     local loopcount = 0
@@ -229,7 +241,7 @@ The_Invis_Thing = function(mode)
                 else
                     mq.cmdf('/dex %s /multiline ; /stopsong; /timed 1 /alt act 3704; /timed 3 /alt act 231', bard)
             end
-            Logger.info('\ag-->\atINVer: \ay',bard, '\at IVUer: \ay', bard,'\ag<--')
+            Logger.info('\ag-->\at INVer: \ay %s \at IVUer: \ay %s \ag<--', bard, bard)
     else
     --without a bard, find who can invis and who can IVU
         local inver = 0
@@ -290,10 +302,10 @@ The_Invis_Thing = function(mode)
         end
 
         if (inver >= 0 and mode ~= 2) then 
-            Logger.info('\ag-->\atINVer: \ay%s<--', mq.TLO.Group.Member(inver).Name())
+            Logger.info('\ag-->\atINVer: \ay %s<--', mq.TLO.Group.Member(inver).Name())
         end
         if (ivuer >= 0 and mode >= 2) then 
-            Logger.info('\ag-->\atIVUer: \ay%s<--', mq.TLO.Group.Member(ivuer).Name())
+            Logger.info('\ag-->\atIVUer: \ay %s<--', mq.TLO.Group.Member(ivuer).Name())
         end
         
         -- Logger.info('\ag-->\atINVer: \ay%s\at IVUer: \ay%s\ag<--', mq.TLO.Group.Member(inver).Name(), mq.TLO.Group.Member(ivuer).Name())
@@ -404,9 +416,15 @@ StopAttack = function()
     Logger.debug('my_class = '..my_class)
     Logger.debug('my_name = '..my_name)
 	mq.cmd('/attack off') 
-	mq.cmd('/cwtna CheckPriorityTarget off nosave')
-	mq.cmdf('/%s CheckPriorityTarget off nosave', my_class )
-	mq.cmdf('/%s manual nosave', my_class )
+    if Settings.general.Automation == 'CWTN' then 
+       	mq.cmd('/cwtna CheckPriorityTarget off nosave')
+        mq.cmdf('/%s CheckPriorityTarget off nosave', my_class )
+        mq.cmdf('/%s manual nosave', my_class )
+    elseif Settings.general.Automation == 'rgmercs' then 
+        --TODO: Finish automation entries
+    elseif Settings.general.Automation == 'KA' then 
+        --TODO: Finish automation entries
+    end
 	Logger.debug('StopAttack branch...')
 	if mq.TLO.Target.CleanName() ~= my_name then mq.cmdf('/eqtarget %s', my_name) end
 end
@@ -417,14 +435,14 @@ ZoneIn = function(npcName, zoneInPhrase, quest_zone)
         mq.cmd('/cwtna pause on nosave')
         mq.delay(250)
     end
-    -- Adding sections to handle other automation
-    mq.cmd('/boxr pause')
+    -- Adding sections to handle other automation - these should work for rgmercs and KA
+    mq.cmd('/dgga /squelch /boxr pause')
     local GroupSize = mq.TLO.Group.Members()
 
     for g = 1, GroupSize, 1 do
         local memberName = mq.TLO.Group.Member(g).Name()
         if mq.TLO.Group.Member(g).Mercenary() ~= true then 
-            Logger.info('\ay-->%s<--\apShould Be Zoning In Now', memberName)
+            Logger.info('\ay-->%s<--\ap Should Be Zoning In Now', memberName)
             mq.cmdf('/dex %s /eqtarget %s', memberName, npcName)
             mq.delay(math.random(2000, 4000))
             mq.cmdf('/dex %s /say %s', memberName, zoneInPhrase)
@@ -445,11 +463,11 @@ ZoneIn = function(npcName, zoneInPhrase, quest_zone)
     if mq.TLO.Target.CleanName() ~= npcName then
         mq.cmdf('/eqtarget %s', npcName)
         mq.delay(5000)
-        Logger.info('\ay-->%s<--\apShould Be Zoning In Now', mq.TLO.Me.CleanName())
+        Logger.info('\ay-->%s<--\ap Should Be Zoning In Now', mq.TLO.Me.CleanName())
         mq.cmdf('/say %s', zoneInPhrase)
     else
         mq.delay(5000)
-        Logger.info('\ay-->%s<--\apShould Be Zoning In Now', mq.TLO.Me.CleanName())
+        Logger.info('\ay-->%s<--\ap Should Be Zoning In Now', mq.TLO.Me.CleanName())
         mq.cmdf('/say %s', zoneInPhrase)
     end
     local counter = 0
@@ -466,9 +484,9 @@ ZoneIn = function(npcName, zoneInPhrase, quest_zone)
         if Settings.general.Automation == 'CWTN' then 
             Logger.info('Un-Pausing CWTN modules after we have zoned in')
             mq.cmd('/cwtna pause off nosave')
-            mq.cmd('/boxr Unpause')
-            mq.delay(250)
         end
+        mq.cmd('/dgga /squelch /boxr Unpause')
+        mq.delay(250)
     end
 end
 
@@ -482,7 +500,7 @@ Task = function(task_name, request_zone, request_npc, request_phrase)
             Logger.info('Not In %s to request task.  Move group to that zone and restart.', request_zone)
             os.exit()
         end
-
+        mq.cmd('/boxr pause')
         MoveToAndSay(request_npc, request_phrase)
 
         for index=1, 5 do
@@ -504,8 +522,9 @@ Task = function(task_name, request_zone, request_npc, request_phrase)
             os.exit()
         end
 
-        Logger.info('\at Got quest.')
+        Logger.info('\at Got quest... Closing Quest window in a few seconds...')
         mq.cmd('/dgga /squelch /timed 50 /windowstate TaskWnd close')
+        mq.delay(100)
     end
 
     if (task() == nil) then
@@ -604,15 +623,24 @@ ZoneCheck = function(quest_zone)
 end
 
 DoPrep = function()
+    mq.cmd('/dgga /makemevis')
     if Settings.general.Automation == 'CWTN' then 
         cwtn_StartingMode = mq.TLO.CWTN.Mode()
         Logger.debug('CWTN Starting Mode: %s', cwtn_StartingMode)
+        -- cwtn_StartingCampRadius = mq.TLO.CWTN.campradius()
+        -- Logger.info('CWTN Starting CampRadius: %s', cwtn_StartingCampRadius)
+        mq.cmd('/cwtn mode manual nosave')
+        mq.delay(20)
         mq.cmd('/cwtn mode chase nosave')
         mq.cmdf('/%s mode sictank nosave', my_class)
+        -- these next 2 lines are probably superfluous, but it makes me feel better
         mq.cmdf('/%s pause off', my_class)
         mq.cmd('/cwtna pause off')
         mq.cmdf('/%s checkprioritytarget off nosave', my_class)
         mq.cmdf('/%s resetcamp', my_class)
+        mq.cmd('/cwtna campradius 200 nosave')
+        mq.cmdf('/cwtna AutoAssistAt 99')
+        
         if (Settings.general.Burn == true) then 
             Logger.debug('Settings.general.Burn = %s', Settings.general.Burn)
             Logger.debug('Setting BurnAlways on')
@@ -622,10 +650,18 @@ DoPrep = function()
             Logger.debug('Setting BurnAlways off')
             mq.cmd('/cwtna burnalways off nosave') 
         end
+    elseif Settings.general.Automation == 'rgmercs' then 
+        --TODO: Finish Automation Setup
+        mq.cmd('/dge /squelch /boxr Chase')
+        
+    elseif Settings.general.Automation == 'KA' then 
+        --TODO: Finish Automation Setup
+        mq.cmd('/dge /squelch /boxr Chase')
+        mq.cmd('/dgga /boxr unpause')
     else
-        -- Use boxr commands to do as much as I can do in the prep routinr
-        mq.cmd('/dge /boxr Chase')
-        -- mq.cmd('/dge /boxr Camp')  
+        print('Unknown Automation method!  I am not sure how you got this far with this entry, but we need to stop the script now!')
+        printf('Current Automation method in the ini: %s', Settings.general.Automation)
+        os.exit()
     end
     mq.cmd('/dgga /makemevis')
 end
@@ -634,9 +670,19 @@ ClearStartingSetup = function()
     mq.delay(2000)
     if Settings.general.Automation == 'CWTN' then 
         mq.cmdf('/%s mode %s nosave', my_class, cwtn_StartingMode)
+        -- mq.cmdf('/%s campradius %s nosave', my_class, cwtn_StartingCampRadius)
         mq.cmdf('/%s pause off', my_class)
         mq.cmdf('/%s checkprioritytarget on nosave', my_class)
+    elseif Settings.general.Automation == 'rgmercs' then 
+        --TODO: Finish Automation Setup
+    elseif Settings.general.Automation == 'KA' then 
+        --TODO: Finish Automation Setup
+    else
+        print('Unknown Automation method!  I am not sure how you got this far with this entry, but we need to stop the script now!')
+        printf('Current Automation method in the ini: %s', Settings.general.Automation)
+        os.exit()        
     end
+    mq.cmd('/dgga /boxr unpause')
 end
 
 Action_OpenChest = function()
