@@ -48,7 +48,7 @@ end
 Logger.info('\awAutomation: \ay%s', Settings.general.Automation)
 Logger.info('\awAutomation: \ay%s', Settings.general.Automation)
 --if (Settings.general.Automation ~= 'CWTN' and Settings.general.Automation ~= 'rgmercs' and Settings.general.Automation ~= 'KA')  then
-if (Settings.general.Automation ~= 'CWTN'  then
+if (Settings.general.Automation ~= 'CWTN')  then
 --    Logger.info("Unknown or invalid automation system. Must be either 'CWTN', 'rgmercs', or 'KA'. Ending script. \ar")
     Logger.info("Unknown or invalid automation system. Must be 'CWTN' currently, until I add the other automation systems'. Ending script. \ar")
     os.exit()
