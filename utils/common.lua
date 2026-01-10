@@ -707,7 +707,7 @@ DoPrep = function()
         mq.cmdf('/%s checkprioritytarget off nosave', my_class)
         mq.cmdf('/%s resetcamp', my_class)
         mq.cmd('/cwtna campradius 200 nosave')
-        mq.cmdf('/cwtna AutoAssistAt 99')
+        mq.cmdf('/cwtna AutoAssistAt 99 nosave')
         
         if (Settings.general.Burn == true) then 
             Logger.debug('Settings.general.Burn = %s', Settings.general.Burn)

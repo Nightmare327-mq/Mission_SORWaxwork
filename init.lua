@@ -31,7 +31,7 @@ Settings = {
         GroupMessage = 'dannet',        -- or "bc" - not yet implemented
         Automation = 'CWTN',            -- Automation method, 'CWTN' for the CWTN plugins, 'rgmercs' for the rgmercs lua automation, 'KA' for KissAssist.  KissAssist and RGMercs lua are not supported currently, but should get added later on        
         PreManaCheck = false,           -- true to pause until the check for everyone's mana, endurance, hp is full before proceeding, false if it stalls at that point
-        Burn = true,                    -- Whether we should burn by default. Some people have a bit of trouble handling the adds when the yburn, so you are able to turn this off if you want
+        Burn = true,                    -- Whether we should burn by default. Some people have a bit of trouble handling the adds when they burn, so you are able to turn this off if you want
         OpenChest = false,              -- true if you want to open the chest automatically at the end of the mission run. I normally do not do this as you can swap toon's out before opening the chest to get the achievements
         WriteCharacterIni = true,       -- Write/read character specific ini file to be able to run different groups with different parameters.  This must be changed in this section of code to take effect
     }
