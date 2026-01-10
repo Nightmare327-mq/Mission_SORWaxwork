@@ -46,7 +46,6 @@ if (Settings.general.GroupMessage ~= 'dannet' and Settings.general.GroupMessage 
 end
 
 Logger.info('\awAutomation: \ay%s', Settings.general.Automation)
-Logger.info('\awAutomation: \ay%s', Settings.general.Automation)
 --if (Settings.general.Automation ~= 'CWTN' and Settings.general.Automation ~= 'rgmercs' and Settings.general.Automation ~= 'KA')  then
 if (Settings.general.Automation ~= 'CWTN')  then
 --    Logger.info("Unknown or invalid automation system. Must be either 'CWTN', 'rgmercs', or 'KA'. Ending script. \ar")
@@ -92,7 +91,6 @@ if Zone_name == request_zone then
 	if mq.TLO.Spawn(request_npc).Distance() > 40 then 
 		Logger.info('You are in %s, but too far away from %s to start the mission! We will attempt to invis and run to the mission npc', request_zone, request_npc)
         GroupInvis(1)
-        -- MoveToAndSay(request_npc, request_phrase)
     end
     local task = Task(Task_Name, request_zone, request_npc, request_phrase)
     WaitForTask(delay_before_zoning)
@@ -108,7 +106,7 @@ end
 Zone_name = mq.TLO.Zone.ShortName()
 
 if Zone_name ~= quest_zone then 
-	Logger.info('You are not in the mission...')
+	Logger.info('You are not in the mission zone or the request zone...Exiting now...')
 	os.exit()
 end
 

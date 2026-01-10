@@ -1,4 +1,7 @@
 local mq = require('mq')
+
+-- #region local Variables
+
 local config_path = ''
 local my_class = mq.TLO.Me.Class.ShortName()
 local my_name = mq.TLO.Me.CleanName()
@@ -7,10 +10,75 @@ local cwtn_StartingCampRadius = 0
 
 local task = mq.TLO.Task(Task_Name)
 
+-- Lookup table: Class ShortName -> CWTN Plugin Name
+local classPluginLookup = {
+    BER = 'MQ2BerZerker',
+    BRD = 'MQ2Bard',
+    BST = 'Mq2Bst',
+    CLR = 'Mq2Cleric',
+    DRU = 'Mq2Druid',
+    ENC = 'MQ2Enchanter',
+    MAG = 'MQ2Mage',
+    MNK = 'MQ2Monk',
+    NEC = 'MQ2Necro',
+    PAL = 'Mq2Paladin',
+    RNG = 'MQ2Ranger',
+    ROG = 'MQ2Rogue',
+    SHD = 'MQ2Eskay',
+    SHM = 'MQ2Shaman',
+    WAR = 'MQ2War',
+    WIZ = 'MQ2Wizard',
+}
+
+-- #endregion
+
+
+-- #region local functions
+
 local function file_exists(name)
 	local f = io.open(name, "r")
 	if f ~= nil then io.close(f) return true else return false end
 end
+
+--- Reload CWTN plugins for all non-mercenary group members
+--- Skips mercenaries automatically
+local function ReloadGroupCWTNPlugins()
+    local groupSize = mq.TLO.Me.GroupSize() or 0
+
+    -- 0 = self, 1..GroupSize = other members
+    for i = 0, groupSize do
+        local member = mq.TLO.Group.Member(i)
+
+        if member() and member.Present() then
+            -- Skip mercenaries
+            if member.Mercenary() then
+                Logger.info('Skipping mercenary in group slot %s', i)
+            else
+                local name = member.Name()
+                local classShort = member.Class.ShortName()
+                local pluginName = classPluginLookup[classShort]
+
+                if pluginName then
+                    if name == mq.TLO.Me.Name() then 
+                        mq.cmdf('/timed 50 /plugin %s unload', pluginName) 
+                        mq.cmdf('/timed 100 /plugin %s load', pluginName) 
+                        Logger.info('Local Plugin reset on %s (%s) %s', name, classShort, pluginName)
+                    else
+                        mq.cmdf('/dex %s /plugin %s unload', name, pluginName)
+                        mq.cmdf('/dex %s /timed 10 /plugin %s', name, pluginName)
+                        Logger.info('Remote Plugin reset on %s (%s) %s', name, classShort, pluginName)
+                    end
+                    
+                else
+                    Logger.info('No plugin mapping for %s (%s)', name, classShort)
+                end
+            end
+        end
+    end
+end
+-- #endregion
+
+-- #region Global Functions
 
 Load_settings=function ()
     local config_dir = mq.configDir:gsub('\\', '/') .. '/'
@@ -627,8 +695,8 @@ DoPrep = function()
     if Settings.general.Automation == 'CWTN' then 
         cwtn_StartingMode = mq.TLO.CWTN.Mode()
         Logger.debug('CWTN Starting Mode: %s', cwtn_StartingMode)
-        -- cwtn_StartingCampRadius = mq.TLO.CWTN.campradius()
-        -- Logger.info('CWTN Starting CampRadius: %s', cwtn_StartingCampRadius)
+        cwtn_StartingCampRadius = mq.TLO.CWTN.CampRadius()
+        Logger.info('CWTN Starting CampRadius: %s', cwtn_StartingCampRadius)
         mq.cmd('/cwtn mode manual nosave')
         mq.delay(20)
         mq.cmd('/cwtn mode chase nosave')
@@ -669,10 +737,13 @@ end
 ClearStartingSetup = function()
     mq.delay(2000)
     if Settings.general.Automation == 'CWTN' then 
-        mq.cmdf('/%s mode %s nosave', my_class, cwtn_StartingMode)
-        -- mq.cmdf('/%s campradius %s nosave', my_class, cwtn_StartingCampRadius)
-        mq.cmdf('/%s pause off', my_class)
-        mq.cmdf('/%s checkprioritytarget on nosave', my_class)
+        -- mq.cmdf('/%s mode %s nosave', my_class, cwtn_StartingMode)
+        -- if cwtn_StartingCampRadius ~= 0 then  mq.cmdf('/%s campradius %s nosave', my_class, cwtn_StartingCampRadius) end
+        -- mq.cmdf('/%s pause off', my_class)
+        -- mq.cmdf('/%s checkprioritytarget on nosave', my_class)
+        Logger.info('Resetting all group CWTN plugins to reset all settings to base...Waiting 5 seconds')
+        mq.delay(5000)
+        ReloadGroupCWTNPlugins()
     elseif Settings.general.Automation == 'rgmercs' then 
         --TODO: Finish Automation Setup
     elseif Settings.general.Automation == 'KA' then 
@@ -682,7 +753,7 @@ ClearStartingSetup = function()
         printf('Current Automation method in the ini: %s', Settings.general.Automation)
         os.exit()        
     end
-    mq.cmd('/dgga /boxr unpause')
+    mq.cmd('/dgga /timed 15 /boxr unpause')
 end
 
 Action_OpenChest = function()
@@ -714,3 +785,5 @@ GetHighestHPXTarget = function()
 
     return highestSpawn
 end
+
+-- #endregion
