@@ -720,11 +720,11 @@ DoPrep = function()
         end
     elseif Settings.general.Automation == 'rgmercs' then 
         --TODO: Finish Automation Setup
-        mq.cmd('/dge /squelch /boxr Chase')
+        mq.cmd('/dgge /squelch /boxr Chase')
         
     elseif Settings.general.Automation == 'KA' then 
         --TODO: Finish Automation Setup
-        mq.cmd('/dge /squelch /boxr Chase')
+        mq.cmd('/dgge /squelch /boxr Chase')
         mq.cmd('/dgga /boxr unpause')
     else
         print('Unknown Automation method!  I am not sure how you got this far with this entry, but we need to stop the script now!')
@@ -759,15 +759,19 @@ end
 Action_OpenChest = function()
     mq.cmd('/squelch /nav spawn _chest | log=off')
     mq.delay(250)
-    while mq.TLO.Nav.Active() do mq.delay(5) end
-    mq.cmd('/eqtarget _chest')
+    WaitForNav()
+    mq.cmd('/target _chest')
+    mq.delay(250)
+    mq.cmd('/open')
+    mq.delay(250)
+    mq.cmd('/target _chest')
     mq.delay(250)
     mq.cmd('/open')
 end
 
 GetHighestHPXTarget = function()
-    local highestSpawn = nil
-    local highestHP = 0
+    local pickSpawn = nil
+    local hpCompare = 0
 
     for i = 1, mq.TLO.Me.XTargetSlots() do
         local xt = mq.TLO.Me.XTarget(i)
@@ -775,15 +779,23 @@ GetHighestHPXTarget = function()
             local spawn = mq.TLO.Spawn(xt.ID())
             if spawn() then
                 local hp = spawn.PctHPs() or 0
-                if hp > highestHP then
-                    highestHP = hp
-                    highestSpawn = spawn
+                if hp > hpCompare then
+                    hpCompare = hp
+                    pickSpawn = spawn
+                end
+                if hp ~= 0 and hp <= 40 and TimeDelay > 500 then 
+                    TimeDelay = 100 
+                    Logger.info('Switching addcheck to faster mode...')
+                end
+                if hp ~= 0 and hp <= 15 and TimeDelay >= 100 then 
+                    TimeDelay = 50 
+                    Logger.info('Switching addcheck to even faster mode...')
                 end
             end
         end
     end
 
-    return highestSpawn
+    return pickSpawn
 end
 
 -- #endregion

@@ -23,9 +23,9 @@ local zonein_phrase = 'ready'
 local quest_zone = 'candlemakers_mission'
 local delay_before_zoning = 30000  -- 30s
 local section = 0
-local timeDelay = 1500
 local holdLastKill = ''
-
+-- Global Variables
+TimeDelay = 1500
 Settings = {
     general = {
         GroupMessage = 'dannet',        -- or "bc" - not yet implemented
@@ -38,6 +38,7 @@ Settings = {
 }
 -- #endregion
 
+Load_settings()
 
 Logger.info('\awGroup Chat: \ay%s', Settings.general.GroupMessage)
 if (Settings.general.GroupMessage ~= 'dannet' and Settings.general.GroupMessage ~= 'bc')  then
@@ -87,7 +88,7 @@ end
 
 if Zone_name == request_zone then 
     mq.cmd('/dgga /boxr unpause')
-    mq.cmd('/dge /boxr chase')
+    mq.cmd('/dgge /boxr chase')
 	if mq.TLO.Spawn(request_npc).Distance() > 40 then 
 		Logger.info('You are in %s, but too far away from %s to start the mission! We will attempt to invis and run to the mission npc', request_zone, request_npc)
         GroupInvis(1)
@@ -141,10 +142,27 @@ if Get_dist_to(-2363, -1296, -125) > 50 then
 end
 
 while Get_dist_to(-2363, -1296, -125) > 50 do
+    -- There have been cases reported where the invis dropped after applying it, so I am doing a triple check here
+    GroupInvis(1)
+    mq.delay(2000)
+    GroupInvis(1)
+    mq.delay(2000)
     GroupInvis(1)
     mq.cmd('/squelch /dgga /nav locyx -2363 -1296 log=off')
     WaitForNav()
-    mq.delay(5000) -- make sure everyone gets to the proper camp spot
+    mq.delay(5000) -- make sure everyone gets to the proper camp spot, but will also check in the next 2 sections
+end
+
+if Get_dist_to(-2363, -1296, -125) > 50 then
+    Logger.info('We should be at the camp spot, but for some reason we are not.  Plase correct the issue and restart')
+    os.exit()
+end
+
+if Get_dist_to(-2363, -1296, -125) < 50 then
+    while CheckGroupDistance(50) ~= true do
+        Logger.info('Waiting for the entire group to make it to the camp spot...')
+        mq.delay(5000)
+    end
 end
 
 Logger.info('Doing some setup...')
@@ -170,57 +188,6 @@ local event_failed = function(line)
     -- failed so quit
     Command = 1
 end
-
-local function getHighestHPXTarget()
-    local pickSpawn = nil
-    local hpCompare = 0
-
-    for i = 1, mq.TLO.Me.XTargetSlots() do
-        local xt = mq.TLO.Me.XTarget(i)
-        if xt() and xt.ID() > 0 then
-            local spawn = mq.TLO.Spawn(xt.ID())
-            if spawn() then
-                local hp = spawn.PctHPs() or 0
-                if hp > hpCompare then
-                    hpCompare = hp
-                    pickSpawn = spawn
-                end
-                if hp ~= 0 and hp <= 40 and timeDelay > 500 then 
-                    timeDelay = 100 
-                    Logger.info('Switching addcheck to faster mode')
-                end
-            end
-        end
-    end
-
-    return pickSpawn
-end
-
-local function getLowestHPXTarget()
-    local pickSpawn = nil
-    local hpCompare = 0
-
-    for i = 1, mq.TLO.Me.XTargetSlots() do
-        local xt = mq.TLO.Me.XTarget(i)
-        if xt() and xt.ID() > 0 then
-            local spawn = mq.TLO.Spawn(xt.ID())
-            if spawn() then
-                local hp = spawn.PctHPs() or 0
-                if hp < hpCompare then
-                    hpCompare = hp
-                    pickSpawn = spawn
-                end
-                -- if 
-                --     hp ~= 0 and hp <= 30 then timeDelay = 500 
-                --     Logger.info('Switching to Lowest')
-                -- end
-            end
-        end
-    end
-
-    return pickSpawn
-end
-
 
 local addFlag = 0
 local addCount = 0
@@ -263,13 +230,8 @@ while true do
             Logger.info('Attacking Split Mobs, until they are dead or despawn...')
         end
 
-        local spawnToKill = getHighestHPXTarget()
+        local spawnToKill = GetHighestHPXTarget()
         
-        -- if timeDelay < 1000 and mq.TLO.Me.XTarget() < addCount then 
-        --     spawnToKill = getLowestHPXTarget() 
-        --     Logger.debug('Switch to Lowest')
-        -- end
-
         if spawnToKill then
             local attackName = spawnToKill.CleanName()
 
@@ -281,8 +243,8 @@ while true do
             MoveToTargetAndAttack(attackName)
         end
     
-
-        mq.delay(timeDelay)
+        Logger.debug('TimeDelay: %s', TimeDelay)
+        mq.delay(TimeDelay)
         ZoneCheck(quest_zone)
         TaskCheck(Task_Name)
     end
