@@ -44,6 +44,7 @@ end
 --- Skips mercenaries automatically
 local function ReloadGroupCWTNPlugins()
     local groupSize = mq.TLO.Me.GroupSize() or 0
+    local grouperRunning = mq.TLO.Lua.Script('grouper').Status() == 'RUNNING'
 
     -- 0 = self, 1..GroupSize = other members
     for i = 0, groupSize do
@@ -63,6 +64,7 @@ local function ReloadGroupCWTNPlugins()
                         mq.cmdf('/timed 50 /plugin %s unload', pluginName) 
                         mq.cmdf('/timed 100 /plugin %s load', pluginName) 
                         Logger.info('Local Plugin reset on %s (%s) %s', name, classShort, pluginName)
+                        if grouperRunning == true then mq.cmd('/timed 200 /lua run grouper') end
                     else
                         mq.cmdf('/dex %s /plugin %s unload', name, pluginName)
                         mq.cmdf('/dex %s /timed 10 /plugin %s', name, pluginName)
@@ -696,7 +698,7 @@ DoPrep = function()
         cwtn_StartingMode = mq.TLO.CWTN.Mode()
         Logger.debug('CWTN Starting Mode: %s', cwtn_StartingMode)
         cwtn_StartingCampRadius = mq.TLO.CWTN.CampRadius()
-        Logger.info('CWTN Starting CampRadius: %s', cwtn_StartingCampRadius)
+        Logger.debug('CWTN Starting CampRadius: %s', cwtn_StartingCampRadius)
         mq.cmd('/cwtn mode manual nosave')
         mq.delay(20)
         mq.cmd('/cwtn mode chase nosave')
@@ -737,10 +739,6 @@ end
 ClearStartingSetup = function()
     mq.delay(2000)
     if Settings.general.Automation == 'CWTN' then 
-        -- mq.cmdf('/%s mode %s nosave', my_class, cwtn_StartingMode)
-        -- if cwtn_StartingCampRadius ~= 0 then  mq.cmdf('/%s campradius %s nosave', my_class, cwtn_StartingCampRadius) end
-        -- mq.cmdf('/%s pause off', my_class)
-        -- mq.cmdf('/%s checkprioritytarget on nosave', my_class)
         Logger.info('Resetting all group CWTN plugins to reset all settings to base...Waiting 5 seconds')
         mq.delay(5000)
         ReloadGroupCWTNPlugins()
