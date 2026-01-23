@@ -94,7 +94,11 @@ if Zone_name == request_zone then
         GroupInvis(1)
     end
     local task = Task(Task_Name, request_zone, request_npc, request_phrase)
-    WaitForTask(delay_before_zoning)
+    local waitForDZ = WaitForDZ(60)
+    if waitForDZ == false then
+        Logger.info('Error getting the task and Zone initiated... Please fix the issue and try again... Exiting script...')
+        os.exit()
+    end
     ZoneIn(request_npc, zonein_phrase, quest_zone)
     mq.delay(5000)
     local allinzone = WaitForGroupToZone(600)
