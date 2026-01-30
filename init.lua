@@ -275,5 +275,11 @@ if (Settings.general.OpenChest == true) then Action_OpenChest() end
 
 mq.unevent('Zoned')
 mq.unevent('Failed')
+
+while mq.TLO.Me.Combat() == true do
+    Logger.info('Mission has ended, but you are still in combat.... Delaying reset until combat has ended...')
+    mq.delay(5000)
+end
+
 ClearStartingSetup()
 Logger.info('...Ended')
