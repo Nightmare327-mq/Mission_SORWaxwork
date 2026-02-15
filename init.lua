@@ -89,9 +89,10 @@ end
 if Zone_name == request_zone then 
     mq.cmd('/dgga /boxr unpause')
     mq.cmd('/dgge /boxr chase')
-	if mq.TLO.Spawn(request_npc).Distance() > 40 then 
-		Logger.info('You are in %s, but too far away from %s to start the mission! We will attempt to invis and run to the mission npc', request_zone, request_npc)
-        GroupInvis(1)
+	if mq.TLO.Spawn(request_npc).Distance() > 200 then 
+		Logger.info('You are in %s, but too far away from %s to start the mission! With storms in this zone, you will need to run to the mission giver', request_zone, request_npc)
+        Logger.info('Exiting script now...')
+        mq.exit()
     end
     local task = Task(Task_Name, request_zone, request_npc, request_phrase)
     local waitForDZ = WaitForDZ(60)
